@@ -1,3 +1,5 @@
+import java.io.PrintStream;
+
 import javax.microedition.sensor.HiTechnicColorSensorInfo;
 
 import lejos.nxt.Button;
@@ -5,6 +7,7 @@ import lejos.nxt.ColorSensor;
 import lejos.nxt.ColorSensor.Color;
 import lejos.nxt.ButtonListener;
 import lejos.nxt.LCD;
+import lejos.nxt.LCDOutputStream;
 import lejos.nxt.LightSensor;
 import lejos.nxt.Motor;
 import lejos.nxt.MotorPort;
@@ -79,17 +82,17 @@ public class Robot {
 			@Override
 			public void buttonReleased(Button b) {
 				// TODO Auto-generated method stub
-				
-			}
-			
-			@Override
-			public void buttonPressed(Button b) {
-				if(Robot.this._rotate_iter_num > 50)
+				if(Robot.this._rotate_iter_num < 50)
 					Robot.this._rotate_iter_num++;
 				
 				LCD.drawInt(_rotate_iter_num, 11, 2);
 				LCD.drawInt(_rotate_iter_num, 0, 9);
 				LCD.refresh();
+			}
+			
+			@Override
+			public void buttonPressed(Button b) {
+
 				
 			}
 		});
@@ -99,17 +102,17 @@ public class Robot {
 			@Override
 			public void buttonReleased(Button b) {
 				// TODO Auto-generated method stub
-				
-			}
-			
-			@Override
-			public void buttonPressed(Button b) {
-				if(Robot.this._rotate_iter_num < 5)
+				if(Robot.this._rotate_iter_num > 5)
 					Robot.this._rotate_iter_num--;
 				
 				LCD.drawInt(_rotate_iter_num, 11, 2);
 				LCD.drawInt(_rotate_iter_num, 0, 9);
 				LCD.refresh();
+			}
+			
+			@Override
+			public void buttonPressed(Button b) {
+
 			}
 		});
 		
@@ -263,13 +266,9 @@ public class Robot {
 				forwardColor = "";
 
 				while (!forwardColor.equals(gate_color)) {
-					while (currentLight < 80) 
+					while ((currentLight < 75) && (sonar.getDistance() > SONAR_GATE_DISTANCE)) 
 					{
 						// checkWall(pilot,touchSensor);
-						if (sonar.getDistance()< SONAR_GATE_DISTANCE) {
-							hitWall = true;
-							pilot.travel(-15);
-						}
 
 						int newLight = lightSensor.readValue();
 						if ((newLight > currentLight) && !hitWall) {
@@ -293,6 +292,11 @@ public class Robot {
 
 							if (hitWall)
 								hitWall = false;
+							
+							if (sonar.getDistance()< SONAR_GATE_DISTANCE) {
+								hitWall = true;
+								pilot.travel(-15);
+							}
 						}
 						currentLight = Math.max(newLight, currentLight);
 						Thread.sleep(100);
@@ -302,11 +306,15 @@ public class Robot {
 					}
 					if(!forwardColor.equals(gate_color))
 					{
+						LCD.clear();
 						LCD.drawString("ohhh. WORNG GATE!", 0, 0);
 						LCD.refresh();
 						
 						pilot.travel(-20);
 						pilot.rotate(100);
+						forwardColor = forwardSensorColorNames[forwardSensor
+						               						.getColor().getColor() + 1];
+						currentLight = 0;
 					}
 				}
 				
@@ -353,6 +361,16 @@ public class Robot {
 	}
 
 	private static String calc_gate_color(String ballColor, String squareColor) {
+		LCD.clear();
+		LCD.drawString("ball"+ballColor+"\n sqr"+squareColor,0,0);
+		LCD.refresh();
+		try {
+			Thread.sleep(200);
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
 		if (is_blue(squareColor))
 		{
 			if (ballColor.equals("Blue") || ballColor.equals("Green"))
