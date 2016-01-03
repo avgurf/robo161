@@ -26,11 +26,11 @@ import lejos.util.PilotProps;
 public class Robot {
 
 	private static final int SONAR_WALL_DISTANCE = 7;
-	private static final int SONAR_OBJECT_DISTANCE = 5;
+	private static final int SONAR_OBJECT_DISTANCE = 8;
 	private static final int SONAR_GATE_DISTANCE = 7;
 	private static boolean _turnedLeft = true;
 	
-	private static int _rotate_iter_num = 12;
+	private static int _rotate_iter_num = 1;
 
 	/**
 	 * @param args
@@ -73,7 +73,7 @@ public class Robot {
 
 		// Initilize ARM (move it to open state)
 		DCMotor arm = new NXTMotor(ARM_PORT);
-		SetArm(arm, false);
+		SetArm(arm, true);
 
 		Button.ENTER.waitForPressAndRelease();
 		
@@ -129,18 +129,18 @@ public class Robot {
 					LCD.drawString("RoateIter:", 0, 2);
 					LCD.drawInt(Robot._rotate_iter_num, 11, 2);
 					LCD.drawInt(i, 0, 9);
-					LCD.drawString("Color:          ", 0, 6);
+
 					LCD.drawString("B", 10, 5);
 					LCD.drawInt(surfaceSensor.getRGBComponent(Color.BLUE), 11,
 							5);
-
+					LCD.drawString("Color:          ", 0, 6);
 					LCD.drawString(sufaceColorName, 7, 6);
 					LCD.refresh();
 					
 					checkWall(pilot, sonar);
 
 					pilot.setTravelSpeed(15);
-					pilot.travel(15);
+					pilot.travel(10);
 					// TODO: deal with
 					i++;
 
@@ -182,15 +182,26 @@ public class Robot {
 				// make sure we're not out of the colored-box
 				sufaceColorName = colorNames[surfaceSensor.getColorID()];
 				int setps_to_ball_counter = 0;
-
+				int op_counter = 1;
+				pilot.setTravelSpeed(5);
 				while (!color_in_wanted_object(forwardColor, sufaceColorName, sonar)) {
 					// Out of colored box. exit.
 					if (!color_in_wanted_box(sufaceColorName))
 						break;
 
-					pilot.setTravelSpeed(5);
-					pilot.travel(2);
-
+					if(op_counter==1)
+						pilot.travel(2);
+					else if(op_counter == 2)
+						pilot.rotate(10);
+					else if (op_counter == 3)
+						pilot.rotate(-20);
+					else
+					{
+						pilot.rotate(10);
+						pilot.travel(2);
+						op_counter = 0;
+					}
+					op_counter++;
 					setps_to_ball_counter++;
 
 					forwardColor = forwardSensorColorNames[forwardSensor
@@ -201,12 +212,7 @@ public class Robot {
 					// if we got out of the colored square continue
 					continue;
 
-//				 //we found a ball
-//				 for(int j = 0; j < 4; j++)
-//				 {
-//				 pilot.rotate(10);
-//				 pilot.rotate(-10);
-//				 }
+				//we found a ball
 
 				LCD.drawString("FOUND BALL!", 5, 5);
 				LCD.refresh();
@@ -214,40 +220,12 @@ public class Robot {
 				// Let's Calculate the color of the destination gate.
 				String gate_color = calc_gate_color(forwardColor, boxColor);
 
-				// Go back and get ready to spin
-				for (int j = 0; j <= setps_to_ball_counter; j++) {
-					pilot.setTravelSpeed(5);
-					pilot.travel(-2);
-				}
-
-				// Since the front is shorter by 7cm
-				// from the butt move back another 7 cm
-				// so we could spin properly.
-				pilot.travel(-10);
+				pilot.rotate(25);
 				
-				LCD.drawString("RoateIter:", 0, 2);
-				LCD.drawInt(Robot._rotate_iter_num, 11, 2);
-				LCD.refresh();
-				
-				// spin
-				for (int j = 0; j < _rotate_iter_num ; j++) {
-					pilot.rotate(25);
-				}
-
-				// Open Cage.
-				SetArm(arm, true);
-				pilot.setTravelSpeed(10);
-				pilot.travel(-5);
-				
-				// Go back to the ball
-				for (int j = 0; j <= setps_to_ball_counter; j++) {
-					pilot.setTravelSpeed(5);
-					pilot.travel(-2);
-				}
+				pilot.setTravelSpeed(5);
+				pilot.travel(2);
 				// catch the ball
 				SetArm(arm, false);
-
-
 				
 				pilot.setTravelSpeed(10);
 				pilot.travel(15);
@@ -265,19 +243,27 @@ public class Robot {
 
 				forwardColor = "";
 
-				while (!forwardColor.equals(gate_color)) {
-					while ((currentLight < 75) && (sonar.getDistance() > SONAR_GATE_DISTANCE)) 
+				while (!forwardColor.equals(gate_color)) 
+				{
+					
+					while ((currentLight < 80) && (sonar.getDistance() > SONAR_GATE_DISTANCE)) 
 					{
+						forwardColor = forwardSensorColorNames[forwardSensor
+							           							.getColor().getColor() + 1];
+						
+						pilot.setTravelSpeed(25);
 						// checkWall(pilot,touchSensor);
 
 						int newLight = lightSensor.readValue();
-						if ((newLight > currentLight) && !hitWall) {
+						if ((newLight > currentLight) && !hitWall)
+						{
 							rotateCount = 0;
 							if (currentLight > 70)
 								pilot.travel(5);
 							else
-								pilot.travel(10);
-						} else {
+								pilot.travel(15);
+						} else
+						{
 
 							if (currentLight > 70) {
 								rotateCount += 10;
@@ -288,7 +274,7 @@ public class Robot {
 							}
 
 							if (rotateCount > 360)
-								pilot.travel(5);
+								pilot.travel(10);
 
 							if (hitWall)
 								hitWall = false;
@@ -298,29 +284,55 @@ public class Robot {
 								pilot.travel(-15);
 							}
 						}
+						
 						currentLight = Math.max(newLight, currentLight);
 						Thread.sleep(100);
 						LCD.drawString("Light:          ", 0, 5);
 						LCD.drawInt(currentLight, 7, 5);
+						LCD.drawString("Color:          ", 0, 6);
+						LCD.drawString(forwardColor, 7, 6);
 						LCD.refresh();
 					}
-					if(!forwardColor.equals(gate_color))
+					forwardColor = forwardSensorColorNames[forwardSensor
+					           							.getColor().getColor() + 1];
+					
+					// In case the robot is too far from the fence try to slowly get closer
+					while (forwardColor.equals("Black") &&  (sonar.getDistance()> 4))
 					{
+						pilot.travel(5);
+						forwardColor = forwardSensorColorNames[forwardSensor
+						           							.getColor().getColor() + 1];
+						
+					}
+					LCD.drawString("Color:          ", 0, 6);
+					LCD.drawString(forwardColor, 7, 6);
+					if(!forwardColor.equals(gate_color) && !is_border_color(forwardColor))
+					{
+						
 						LCD.clear();
 						LCD.drawString("ohhh. WORNG GATE!", 0, 0);
 						LCD.refresh();
+						Thread.sleep(1000);
 						
-						pilot.travel(-20);
-						pilot.rotate(100);
+						pilot.setTravelSpeed(50);
+						pilot.travel(-100);
+						pilot.rotate(90);
 						forwardColor = forwardSensorColorNames[forwardSensor
 						               						.getColor().getColor() + 1];
 						currentLight = 0;
+					}
+					else if (is_border_color(forwardColor))
+					{
+						// Probably really near, but stuck in the border
+						pilot.travel(-15);
+						pilot.rotate(10);
 					}
 				}
 				
 				LCD.drawString("YES! DONE.", 0, 0);
 				LCD.refresh();
 				
+				pilot.travel(-100);
 				SetArm(arm, true);
 				
 				// Rotate Twice
@@ -345,15 +357,24 @@ public class Robot {
 		 * wheel stationary pilot.stop(); System.out.println("Done.");
 		 */
 	}
+	/**
+	 * Verifies if the color is the color of the table border
+	 * @param forwardColor
+	 * @return
+	 */
+	private static boolean is_border_color(String forwardColor) {
+		
+		return forwardColor.equals("White") || forwardColor.equals("Black");
+	}
 
 	private static void SetArm(DCMotor arm, boolean isOpen) {
-		arm.setPower(30);
-		if (isOpen)
+		arm.setPower(35);
+		if (!isOpen)
 			arm.forward();
 		else
 			arm.backward();
 		try {
-			Thread.sleep(1000);
+			Thread.sleep(2000);
 		} catch (Exception ex) {}
 
 		arm.stop();
@@ -438,13 +459,13 @@ public class Robot {
 	private static boolean color_in_wanted_object(String forward_color,
 			String surface_color, UltrasonicSensor sonar) {
 		
-		if(forward_color.equals(surface_color) && sonar != null)
+		if((forward_color.equals(surface_color) || forward_color.equals("Black")) && sonar != null)
 			return (sonar.getDistance()<SONAR_OBJECT_DISTANCE);
 
-		return (!forward_color.equals(surface_color) && (forward_color
+		return /*(!forward_color.equals(surface_color) &&*/ (forward_color
 				.equals("Green")
 				|| forward_color.equals("Blue")
-				|| forward_color.equals("Red") || forward_color.equals("White")));
+				|| forward_color.equals("Red") || forward_color.equals("White") )/*)*/;
 	}
 
 	private static boolean color_in_wanted_box(String sufaceColorName) {
